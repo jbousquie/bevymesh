@@ -1,7 +1,9 @@
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, VertexAttributeValues};
-//use bevy::render::mesh::VertexAttributeValues;
 use bevy::render::render_resource::PrimitiveTopology;
+use bevy_panorbit_camera::{PanOrbitCamera, PanOrbitCameraPlugin};
+mod fpscounter;
+use fpscounter::fpscounter::FpsCounterPlugin;
 
 #[derive(Component)]
 struct CustomUV;
@@ -9,6 +11,8 @@ struct CustomUV;
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_plugins(PanOrbitCameraPlugin)
+        .add_plugins(FpsCounterPlugin)
         .add_systems(Startup, setup)
         .add_systems(Update, input_handler)
         .run();
@@ -38,10 +42,13 @@ fn setup(
     let camera_and_light_transform =
         Transform::from_xyz(1.8, 1.8, 1.8).looking_at(Vec3::ZERO, Vec3::Y);
 
-    commands.spawn(Camera3dBundle {
-        transform: camera_and_light_transform,
-        ..default()
-    });
+    commands.spawn((
+        Camera3dBundle {
+            transform: camera_and_light_transform,
+            ..default()
+        },
+        PanOrbitCamera::default(),
+    ));
 
     commands.spawn(PointLightBundle {
         point_light: PointLight {
@@ -61,10 +68,15 @@ fn input_handler(
     mut query: Query<&mut Transform, With<CustomUV>>,
     time: Res<Time>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Space) {
+    if keyboard_input.pressed(KeyCode::Space) {
         let mesh_handle = mesh_query.get_single().expect("Query not successful");
         let mesh = meshes.get_mut(mesh_handle).unwrap();
-        handle_morph(mesh);
+        handle_morph(mesh, 1.);
+    }
+    if keyboard_input.pressed(KeyCode::ShiftRight) {
+        let mesh_handle = mesh_query.get_single().expect("Query not successful");
+        let mesh = meshes.get_mut(mesh_handle).unwrap();
+        handle_morph(mesh, -1.);
     }
     if keyboard_input.pressed(KeyCode::X) {
         for mut transform in &mut query {
@@ -184,7 +196,7 @@ fn create_cube_mesh() -> Mesh {
         ))) 
 }
 
-fn handle_morph(mesh_to_change: &mut Mesh) {
+fn handle_morph(mesh_to_change: &mut Mesh, direction: f32) {
     let pos_attribute = mesh_to_change
         .attribute_mut(Mesh::ATTRIBUTE_POSITION)
         .unwrap();
@@ -193,6 +205,6 @@ fn handle_morph(mesh_to_change: &mut Mesh) {
     };
 
     for pos_coord in pos_attribute.iter_mut() {
-        pos_coord[0] += 0.2;
+        pos_coord[0] *= 1. + 0.02 * direction;
     }
 }
